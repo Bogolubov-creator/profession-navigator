@@ -1,0 +1,6 @@
+import fs from 'node:fs';import path from 'node:path';import {createHash} from 'node:crypto';import {run,privateDir} from '../server/db.js';
+const data=JSON.parse(fs.readFileSync('public/release/catalog.json'));
+for(const p of data.professions)run('INSERT OR IGNORE INTO professions VALUES(?,?)',p.id,JSON.stringify(p));
+for(const m of data.materials){run('INSERT OR IGNORE INTO materials VALUES(?,?,?,?,?,?,1,?)',m.id,m.sourceId,m.code||'',m.profession,m.kind,m.status,JSON.stringify({...m,revision:1}));if(m.fileId){const ext=data.files[m.fileId],src='public/release/files/'+m.fileId+ext,dest=path.join(privateDir,'handoff/materials',m.sourceName);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(src,dest);const sha=createHash('sha256').update(fs.readFileSync(src)).digest('hex');run('INSERT OR IGNORE INTO sources VALUES(?,?,?)',m.fileId,sha,JSON.stringify({id:m.fileId,path:'materials/'+m.sourceName,kind:'form',sha256:sha}));}}
+for(const r of data.relations)run('INSERT OR IGNORE INTO relations VALUES(?,?,?,?,?)',r.id,r.origin,r.target,r.target_code,'Публичная выборка');
+console.log('Импортирован публичный каталог и разрешённые формы. Для полного редакторского корпуса нужен исходный комплект.');

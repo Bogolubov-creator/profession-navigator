@@ -1,0 +1,14 @@
+import { DatabaseSync } from 'node:sqlite';
+import fs from 'node:fs';
+import path from 'node:path';
+export const root=path.resolve(import.meta.dirname,'..');
+export const privateDir=path.resolve(process.env.DATA_DIR||path.join(root,'private'));
+fs.mkdirSync(privateDir,{recursive:true,mode:0o700});
+export const db=new DatabaseSync(path.join(privateDir,'navigator.sqlite'));
+db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
+db.exec(fs.readFileSync(path.join(root,'migrations/001.sql'),'utf8'));
+export const all=(sql,...params)=>db.prepare(sql).all(...params);
+export const one=(sql,...params)=>db.prepare(sql).get(...params);
+export const run=(sql,...params)=>db.prepare(sql).run(...params);
+export const unpack=r=>r?{...JSON.parse(r.data),id:r.id,revision:r.revision,status:r.status,kind:r.kind}:null;
+export const materials=()=>all('SELECT * FROM materials').map(unpack);
