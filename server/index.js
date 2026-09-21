@@ -61,6 +61,9 @@ function validate(m){
  if(!['card','question','guide','form','service','task','example','norm'].includes(m.kind))throw Error('Некорректный тип');
  if(['task','example'].includes(m.kind)&&m.status==='published')throw Error('Задания и учебные примеры нельзя публиковать как ответы');
  if(!Array.isArray(m.steps)||m.steps.length>200)throw Error('Некорректные шаги');
+ if(!Array.isArray(m.attachments)||!Array.isArray(m.blocks))throw Error('Вложения и блоки должны быть списками');
+ if(new Set(m.steps.map(s=>s.id)).size!==m.steps.length)throw Error('ID шагов должны быть уникальны');
+ for(const s of m.steps){if(typeof s.id!=='string'||typeof s.text!=='string'||!Array.isArray(s.attachments||[])||!Array.isArray(s.branches||[]))throw Error('Некорректный шаг');for(const b of s.branches||[])if(!Number.isInteger(b.index)||b.index<0||b.index>=m.steps.length)throw Error('Развилка ссылается на отсутствующий шаг');}
  if(m.url&&!/^https?:\/\//.test(m.url))throw Error('Допускаются только HTTP(S)-адреса');
  if(m.legalStatus==='verified'&&(!m.legalDate||!m.legalBasis))throw Error('Укажите дату и основание юридической проверки');
  for(const id of [m.fileId,...(m.attachments||[]),...m.steps.flatMap(s=>s.attachments||[])].filter(Boolean)){
