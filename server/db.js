@@ -6,7 +6,8 @@ export const privateDir=path.resolve(process.env.DATA_DIR||path.join(root,'priva
 fs.mkdirSync(privateDir,{recursive:true,mode:0o700});
 export const db=new DatabaseSync(path.join(privateDir,'navigator.sqlite'));
 db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
-db.exec(fs.readFileSync(path.join(root,'migrations/001.sql'),'utf8'));
+for(const name of fs.readdirSync(path.join(root,'migrations')).filter(n=>n.endsWith('.sql')).sort())db.exec(fs.readFileSync(path.join(root,'migrations',name),'utf8'));
+db.exec('PRAGMA secure_delete=ON;');
 export const all=(sql,...params)=>db.prepare(sql).all(...params);
 export const one=(sql,...params)=>db.prepare(sql).get(...params);
 export const run=(sql,...params)=>db.prepare(sql).run(...params);

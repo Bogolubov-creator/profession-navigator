@@ -18,7 +18,8 @@
     "restore": "node scripts/backup.js restore",
     "test:browser": "node scripts/browser-qa.js",
     "test:xss": "node scripts/security-browser-qa.js",
-    "enrich": "node scripts/enrich.js"
+    "enrich": "node scripts/enrich.js",
+    "test:accounts-browser": "node scripts/accounts-browser-qa.js"
   },
   "dependencies": {
     "express": "^5.1.0",

@@ -18,8 +18,9 @@ export function Detail({id,route,user,personal,refresh,notify}){
  const step=m?.steps?.length&&!cardView?Math.max(0,Math.min(m.steps.length-1,Number.isFinite(requested)?requested:0)):null;
  useEffect(()=>{setM(null);setFailure('');api('/api/materials/'+id).then(setM).catch(e=>setFailure(e.message));api('/api/relations/'+id).then(setRelations).catch(()=>{})},[id]);
  useEffect(()=>{const active=rail.current?.querySelector('[aria-current="step"]');if(active)rail.current.scrollTo({left:active.offsetLeft-rail.current.offsetLeft,behavior:'instant'})},[step,m]);
- if(failure)return <div className="empty"><h1>Материал недоступен</h1><p>{failure}</p><a href="#/home">К списку</a></div>;
+ if(failure)return <div className="empty"><h1>Материал недоступен</h1><p>{failure}</p><a href="#/account">Открыть личный кабинет</a><p><a href="#/home">К списку</a></p></div>;
  if(!m)return <div className="loading">Загрузка…</div>;
+ if(m.locked)return <div className="empty"><h1>{m.title}</h1><p>Материал доступен по подписке в серверном приложении.</p><a href="#/home">К списку</a></div>;
  const favorite=personal.items.some(x=>x.kind==='favorite'&&x.item===id),current=m.steps[step];
  const back=route.params.get('back')?.startsWith('#/')?route.params.get('back'):'#/home'+(m.profession?'?profession='+m.profession:'');
  const save=async(kind,data,method='PUT')=>{if(!user){notify('Войдите, чтобы сохранить изменения');return;}try{await api('/api/personal/'+kind+'/'+id,{method,body:data});refresh();notify('Сохранено')}catch(e){notify(e.message)}};

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {randomBytes,randomUUID,scryptSync,timingSafeEqual} from 'node:crypto';
 import {db,all,one,run,unpack,materials,root,privateDir} from './db.js';
+import {registerAccounts,canRead,preview,staff} from './accounts.js';
 import {performImport} from '../scripts/import.js';
 const app=express(), port=Number(process.env.PORT||4317), host=process.env.HOST||'127.0.0.1';
 app.disable('x-powered-by');app.use(express.json({limit:'2mb'}));
@@ -25,6 +26,7 @@ const admin=(req,res,next)=>req.user?.role==='admin'?next():error(res,403,'Ну�
 const normalize=s=>String(s||'').toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim();
 const visible=(m,u)=>m&&(m.status==='published'||['editor','admin'].includes(u?.role));
 const safePublic=m=>{const {editorNote,sourceSha, ...rest}=m;return rest;};
+registerAccounts(app,{auth,admin});
 const attempts=new Map();
 app.post('/api/login',(req,res)=>{
  const key=req.ip, a=attempts.get(key)||{n:0,time:Date.now()};if(Date.now()-a.time>600000){a.n=0;a.time=Date.now();}if(a.n>=20)return error(res,429,'Слишком много попыток. Повторите через 10 минут');a.n++;attempts.set(key,a);
@@ -39,20 +41,21 @@ app.get('/api/catalog',(req,res)=>res.json(all('SELECT data FROM professions').m
 app.get('/api/materials',(req,res)=>{
  let list=materials().filter(m=>req.query.admin==='1'&&['editor','admin'].includes(req.user?.role)||m.status==='published');
  const professionNames=Object.fromEntries(all('SELECT id,data FROM professions').map(r=>[r.id,JSON.parse(r.data).title]));
- const q=normalize(req.query.q);if(q){const terms=q.match(/"[^"]+"|\S+/g)||[];list=list.filter(m=>terms.every(t=>normalize(JSON.stringify(m)+' '+professionNames[m.profession]).includes(t.replaceAll('"',''))));}
+ const q=normalize(req.query.q);if(q){const terms=q.match(/"[^"]+"|\S+/g)||[];list=list.filter(m=>terms.every(t=>normalize(JSON.stringify(preview(m,req.user))+' '+professionNames[m.profession]).includes(t.replaceAll('"',''))));}
  for(const k of ['profession','kind','status','category','side','urgency'])if(req.query[k])list=list.filter(m=>m[k]===req.query[k]);
  list.sort((a,b)=>a.title.localeCompare(b.title,'ru')*(req.query.sort==='desc'?-1:1));const total=list.length,page=Math.max(1,Number(req.query.page)||1),limit=Math.min(1000,Math.max(1,Number(req.query.limit)||24));
- res.json({total,items:list.slice((page-1)*limit,page*limit).map(m=>req.query.admin==='1'?m:safePublic(m))});
+ res.json({total,items:list.slice((page-1)*limit,page*limit).map(m=>staff(req.user)&&req.query.admin==='1'?m:preview(safePublic(m),req.user))});
 });
-app.get('/api/materials/:id',(req,res)=>{const m=unpack(one('SELECT * FROM materials WHERE id=?',req.params.id));if(!visible(m,req.user))return error(res,404,'Материал недоступен');res.json(['editor','admin'].includes(req.user?.role)?m:safePublic(m));});
-app.get('/api/relations/:id',(req,res)=>{const m=unpack(one('SELECT * FROM materials WHERE id=?',req.params.id));if(!visible(m,req.user))return error(res,404,'Материал недоступен');res.json(all('SELECT * FROM relations WHERE origin=?',m.id).map(r=>{const target=unpack(one('SELECT * FROM materials WHERE id=?',r.target||''));return {...r,target:visible(target,req.user)?r.target:null};}));});
+app.get('/api/materials/:id',(req,res)=>{const m=unpack(one('SELECT * FROM materials WHERE id=?',req.params.id));if(!visible(m,req.user))return error(res,404,'Материал недоступен');if(!canRead(m,req.user))return res.status(402).json({error:'Материал доступен по подписке',locked:true,title:m.title});res.json(staff(req.user)?m:safePublic(m));});
+app.get('/api/relations/:id',(req,res)=>{const m=unpack(one('SELECT * FROM materials WHERE id=?',req.params.id));if(!visible(m,req.user))return error(res,404,'Материал недоступен');if(!canRead(m,req.user))return error(res,402,'Материал доступен по подписке');res.json(all('SELECT * FROM relations WHERE origin=?',m.id).map(r=>{const target=unpack(one('SELECT * FROM materials WHERE id=?',r.target||''));return {...r,target:visible(target,req.user)?r.target:null};}));});
 app.get('/files/:id',(req,res)=>{
  const row=one('SELECT data FROM sources WHERE id=?',req.params.id);if(!row)return error(res,404,'Файл не найден');const s=JSON.parse(row.data);
- const allowed=materials().some(m=>m.fileId===s.id&&m.status==='published');if(!allowed&&!['editor','admin'].includes(req.user?.role))return error(res,404,'Файл недоступен');
+ const allowed=materials().some(m=>m.fileId===s.id&&m.status==='published'&&canRead(m,req.user));if(!allowed&&!['editor','admin'].includes(req.user?.role))return error(res,404,'Файл недоступен');
  const p=path.resolve(privateDir,'handoff',s.path),base=path.resolve(privateDir,'handoff');if(!p.startsWith(base+path.sep))return error(res,400,'Недопустимый путь');
  const name=path.basename(p);if(req.query.download==='1'||path.extname(p)!=='.pdf')res.download(p,name);else res.sendFile(p);
 });
 function validate(m){
+ if(m.accessLevel&&!['public','subscriber'].includes(m.accessLevel))throw Error('Некорректный доступ');
  if(m.status==='published'&&m.sourceId){const src=one('SELECT data FROM sources WHERE id=?',m.sourceId);if(src&&['assignment','version','filled_sample','archive'].includes(JSON.parse(src.data).kind))throw Error('Этот источник предназначен только для редактора');}
  if(m.status==='published'&&JSON.stringify(m).includes('хз как заменить'))throw Error('Уберите рабочую авторскую пометку перед публикацией');
  if(m.code&&m.kind==='card'&&one("SELECT id FROM materials WHERE code=? AND kind='card' AND id<>? AND status<>'archived'",m.code,m.id))throw Error('Код карточки уже занят');
@@ -95,7 +98,7 @@ app.get('/api/personal',auth,(req,res)=>{
  for(const t of items.filter(x=>x.kind==='task'&&!x.data.done&&x.data.due&&x.data.due<=new Date().toISOString().slice(0,10))){const id='task-'+req.user.id+'-'+t.item;run('INSERT OR IGNORE INTO notifications VALUES(?,?,?,0)',id,req.user.id,JSON.stringify({title:'Срок личной задачи: '+t.data.title,created:new Date().toISOString()}));}
  res.json({items,notifications:all('SELECT * FROM notifications WHERE user_id=?',req.user.id).map(r=>({...r,...JSON.parse(r.data)}))});
 });
-app.put('/api/personal/:kind/:id',auth,(req,res)=>{const {kind,id}=req.params;if(!['progress','favorite','task'].includes(kind))return error(res,400,'Неверный тип');if(kind!=='task'){const m=unpack(one('SELECT * FROM materials WHERE id=?',id));if(!visible(m,req.user))return error(res,404,'Материал недоступен');if(kind==='progress'&&(!Array.isArray(req.body.done)||req.body.done.some(s=>!m.steps.some(x=>x.id===s))))return error(res,400,'Неизвестный шаг');}if(kind==='task'&&(typeof req.body.title!=='string'||!req.body.title.trim()))return error(res,400,'Введите задачу');run('INSERT INTO personal VALUES(?,?,?,?) ON CONFLICT(user_id,kind,item) DO UPDATE SET data=excluded.data',req.user.id,kind,id,JSON.stringify(req.body));res.json({ok:true});});
+app.put('/api/personal/:kind/:id',auth,(req,res)=>{const {kind,id}=req.params;if(!['progress','favorite','task'].includes(kind))return error(res,400,'Неверный тип');if(kind!=='task'){const m=unpack(one('SELECT * FROM materials WHERE id=?',id));if(!visible(m,req.user)||!canRead(m,req.user))return error(res,404,'Материал недоступен');if(kind==='progress'&&(!Array.isArray(req.body.done)||req.body.done.some(s=>!m.steps.some(x=>x.id===s))))return error(res,400,'Неизвестный шаг');}if(kind==='task'&&(typeof req.body.title!=='string'||!req.body.title.trim()))return error(res,400,'Введите задачу');run('INSERT INTO personal VALUES(?,?,?,?) ON CONFLICT(user_id,kind,item) DO UPDATE SET data=excluded.data',req.user.id,kind,id,JSON.stringify(req.body));res.json({ok:true});});
 app.delete('/api/personal/:kind/:id',auth,(req,res)=>{run('DELETE FROM personal WHERE user_id=? AND kind=? AND item=?',req.user.id,req.params.kind,req.params.id);res.json({ok:true});});
 app.put('/api/notifications/:id',auth,(req,res)=>{run('UPDATE notifications SET read=1 WHERE id=? AND user_id=?',req.params.id,req.user.id);res.json({ok:true});});
 app.use('/api',(req,res)=>error(res,404,'API не найден'));
