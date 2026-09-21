@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {remapSteps} from '../shared/steps.js';
+test('Развилки сохраняют адресата при перестановке и удаляются вместе с адресатом',()=>{const a=[{id:'a',branches:[{label:'К решению',index:2}]},{id:'b',branches:[]},{id:'c',branches:[]}];assert.equal(remapSteps(a,[a[2],a[0],a[1]])[1].branches[0].index,0);assert.deepEqual(remapSteps(a,a.slice(0,2))[0].branches,[]);assert.equal(a[0].branches[0].index,2);});
