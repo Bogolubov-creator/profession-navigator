@@ -4,6 +4,7 @@ import path from 'node:path';
 import {randomBytes,randomUUID,scryptSync,timingSafeEqual} from 'node:crypto';
 import {db,all,one,run,unpack,materials,root,privateDir} from './db.js';
 import {registerAccounts,canRead,preview,staff} from './accounts.js';
+import {registerChanges} from './changes.js';
 import {currentFileNames} from '../shared/current-files.js';
 import {performImport} from '../scripts/import.js';
 const app=express(), port=Number(process.env.PORT||4317), host=process.env.HOST||'127.0.0.1';
@@ -111,6 +112,7 @@ app.get('/api/personal',auth,(req,res)=>{
 app.put('/api/personal/:kind/:id',auth,(req,res)=>{const {kind,id}=req.params;if(!['progress','favorite','task'].includes(kind))return error(res,400,'Неверный тип');if(kind!=='task'){const m=unpack(one('SELECT * FROM materials WHERE id=?',id));if(!visible(m,req.user)||!canRead(m,req.user))return error(res,404,'Материал недоступен');if(kind==='progress'&&(!Number.isInteger(req.body.current)||req.body.current<0||req.body.current>=m.steps.length||!Array.isArray(req.body.done)||req.body.done.some(s=>!m.steps.some(x=>x.id===s))))return error(res,400,'Неизвестный шаг');}if(kind==='task'&&(typeof req.body.title!=='string'||!req.body.title.trim()))return error(res,400,'Введите задачу');run('INSERT INTO personal VALUES(?,?,?,?) ON CONFLICT(user_id,kind,item) DO UPDATE SET data=excluded.data',req.user.id,kind,id,JSON.stringify(req.body));res.json({ok:true});});
 app.delete('/api/personal/:kind/:id',auth,(req,res)=>{run('DELETE FROM personal WHERE user_id=? AND kind=? AND item=?',req.user.id,req.params.kind,req.params.id);res.json({ok:true});});
 app.put('/api/notifications/:id',auth,(req,res)=>{run('UPDATE notifications SET read=1 WHERE id=? AND user_id=?',req.params.id,req.user.id);res.json({ok:true});});
+registerChanges(app,{root,privateDir,editor});
 app.use('/api',(req,res)=>error(res,404,'API не найден'));
 app.use(express.static(path.join(root,'dist')));
 app.get('/{*path}',(req,res)=>res.sendFile(path.join(root,'dist/index.html')));
