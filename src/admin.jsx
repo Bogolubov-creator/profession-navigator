@@ -2,13 +2,15 @@ import React,{useEffect,useState} from 'react';
 import {api,labels,fileUrl,mirror} from './api';
 import {Blocks} from './reader';
 import {Editor} from './editor';
+import {UploadDocument} from './documents';
+import {QuestionsAdmin} from './legal-questions';
 import {AccountsAdmin} from './account';
 import {Pencil,Copy,Eye} from 'lucide-react';
-const sections=[['materials','Материалы'],['sources','Источники и импорт'],['stats','Статистика'],['taxonomy','Категории и чек-листы'],['professions','Профессии'],['users','Права доступа'],['accounts','Подписки и данные']];
-export function Admin({route,user,notify,catalog}){
+const sections=[['materials','Материалы'],['upload','Загрузить документ'],['legal-questions','Правовые вопросы'],['sources','Источники и импорт'],['stats','Статистика'],['taxonomy','Категории и чек-листы'],['professions','Профессии'],['users','Права доступа'],['accounts','Подписки и данные']];
+export function Admin({route,user,notify,catalog,profession}){
  const tab=route.params.get('tab')||'materials',id=route.path.startsWith('admin/edit/')?route.path.slice(11):null;
  if(mirror||!['admin','editor'].includes(user?.role))return <div className="empty"><h1>Редакторский кабинет</h1><p>Для доступа войдите с учётной записью редактора или администратора.</p><a href="#/login">Войти</a></div>;
- return <><h1>{id?"Редактирование материала":"Администрирование"}</h1><div className="tabs">{sections.filter(([k])=>!['users','accounts'].includes(k)||user.role==='admin').map(([k,l])=><a className={tab===k&&!id?'selected':''} href={'#/admin?tab='+k} key={k}>{l}</a>)}</div>{id?<Editor key={id} id={id} notify={notify} catalog={catalog} initialPane={route.params.get("section")||"main"}/>:tab==='materials'?<AdminList route={route} notify={notify} catalog={catalog}/>:tab==='sources'?<Sources notify={notify} user={user}/>:tab==='stats'?<Stats/>:tab==='taxonomy'?<Taxonomy notify={notify}/>:tab==='accounts'?<AccountsAdmin notify={notify}/>:tab==='professions'?<Professions catalog={catalog} notify={notify}/>:<Users notify={notify}/>}</>;
+ return <><h1>{id?"Редактирование материала":"Администрирование"}</h1><div className="tabs">{sections.filter(([k])=>!['users','accounts'].includes(k)||user.role==='admin').map(([k,l])=><a className={tab===k&&!id?'selected':''} href={'#/admin?tab='+k+(profession?'&profession='+encodeURIComponent(profession):'')} key={k}>{l}</a>)}</div>{id?<Editor key={id} id={id} notify={notify} catalog={catalog} initialPane={route.params.get("section")||"main"}/>:tab==='materials'?<AdminList route={route} notify={notify} catalog={catalog}/>:tab==='upload'?<UploadDocument catalog={catalog} profession={route.params.get('profession')||profession||''} notify={notify}/>:tab==='legal-questions'?<QuestionsAdmin catalog={catalog} profession={profession} notify={notify}/>:tab==='sources'?<Sources notify={notify} user={user}/>:tab==='stats'?<Stats/>:tab==='taxonomy'?<Taxonomy notify={notify}/>:tab==='accounts'?<AccountsAdmin notify={notify}/>:tab==='professions'?<Professions catalog={catalog} notify={notify}/>:<Users notify={notify}/>}</>;
 }
 function AdminList({route,notify,catalog}){
  const [data,setData]=useState({items:[],total:0});const p=route.params;useEffect(()=>{api('/api/materials?'+new URLSearchParams({...Object.fromEntries(p),admin:1,limit:30})).then(setData).catch(e=>notify(e.message))},[p.toString()]);

@@ -26,7 +26,8 @@
     "audit:content": "node scripts/content-audit.js",
     "test:editor": "node scripts/editor-browser-qa.js",
     "sync:changes": "node scripts/sync-changes.js",
-    "test:changes-browser": "node scripts/changes-browser-qa.js"
+    "test:changes-browser": "node scripts/changes-browser-qa.js",
+    "test:support-browser": "node scripts/support-browser-qa.js"
   },
   "dependencies": {
     "express": "^5.1.0",

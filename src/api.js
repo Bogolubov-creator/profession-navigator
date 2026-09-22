@@ -14,3 +14,5 @@ export async function api(url,options={}){
 }
 export const fileUrl=(id,download=false)=>mirror?`./files/${id}${data?.files?.[id]||''}`:`/files/${id}${download?'?download=1':''}`;
 export const labels={card:'Что делать',question:'Вопрос гида',guide:'Фрагмент гида',form:'Документ',service:'Сервис',task:'Редакционное задание',example:'Учебный пример',norm:'Нормативный источник',draft:'Черновик',review:'Требует проверки',ready:'Готов к публикации',published:'Опубликован',archived:'В архиве'};
+
+export async function uploadDocument(file,profession,title){const params=new URLSearchParams({name:file.name,profession,title});const r=await fetch("/api/admin/documents?"+params,{method:"POST",headers:{"Content-Type":"application/octet-stream","X-CSRF-Token":csrf},body:file});const result=await r.json();if(!r.ok)throw Error(result.error||"Не удалось загрузить документ");return result;}

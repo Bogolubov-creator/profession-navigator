@@ -25,7 +25,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: node --test tests/accounts.test.js tests/steps.test.js tests/legal-corrections.test.js tests/published-content.test.js tests/changes.test.js
+      - run: node --test tests/accounts.test.js tests/steps.test.js tests/legal-corrections.test.js tests/published-content.test.js tests/changes.test.js tests/support.test.js
       - run: node scripts/sync-changes.js --previous-published
       - run: npm run mirror
       - uses: actions/configure-pages@v5
