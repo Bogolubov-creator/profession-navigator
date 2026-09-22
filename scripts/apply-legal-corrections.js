@@ -3,7 +3,7 @@ import path from 'node:path';
 import {backup} from 'node:sqlite';
 import {db,one,run,unpack,root,privateDir} from '../server/db.js';
 import {applyLegalCorrection} from '../shared/legal-corrections.js';
-const patches=JSON.parse(fs.readFileSync(path.join(root,'content/legal-corrections-2026-09-22.json')));
+const patches=JSON.parse(fs.readFileSync(path.resolve(root,process.argv[2]||'content/legal-corrections-2026-09-22.json')));
 const destination=path.join(privateDir,'backups');fs.mkdirSync(destination,{recursive:true,mode:0o700});
 await backup(db,path.join(destination,'before-legal-audit-'+Date.now()+'.sqlite'));
 let updated=0;

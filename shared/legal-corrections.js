@@ -12,7 +12,7 @@ export function applyLegalCorrection(material, patch) {
   if(!previous||previous.text!==step.text)step.id='legal-'+digest.slice(0,12)+'-'+i;
   return step;
  });
- return {...material,...fields,revision:material.revision+1,legalStatus:'unverified',contentOrigin:'edited-source',
+ return {...material,...fields,revision:material.revision+1,legalStatus:'unverified',contentOrigin:material.contentOrigin==='editorial'?'editorial':'edited-source',
   externalLinks:[...new Map([...(material.externalLinks||[]),...patch.sources].map(s=>[s.url,s])).values()],
   legalReview:{date:'2026-09-22',status:'partial',issue:patch.issue,sources:patch.sources,correctionDigest:digest}};
 }

@@ -1,5 +1,6 @@
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
+import {publishedCurrentFiles} from '../shared/current-files.js';
 import {sanitizeRelease} from './public-access.js';
 import path from 'node:path';
 const root=path.resolve(import.meta.dirname,'..');
@@ -15,3 +16,6 @@ const safe=sanitizeRelease(JSON.parse(fs.readFileSync(catalogPath,'utf8')));
 fs.writeFileSync(catalogPath,JSON.stringify(safe));
 const allowed=new Set(Object.entries(safe.files).map(([id,ext])=>id+ext));
 for(const file of fs.readdirSync(path.join(root,'work/mirror/files')))if(!allowed.has(file))fs.rmSync(path.join(root,'work/mirror/files',file));
+
+const current=path.join(root,'work/mirror/current');const allowedCurrent=publishedCurrentFiles(safe.materials);
+if(fs.existsSync(current))for(const file of fs.readdirSync(current))if(!allowedCurrent.has(file))fs.rmSync(path.join(current,file));

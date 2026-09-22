@@ -3,7 +3,7 @@ import {sanitizeRelease} from './public-access.js';
 import path from 'node:path';
 import {all,one,run,unpack,privateDir,root} from '../server/db.js';
 const selectedSources=new Set(['SRC-002','SRC-015','SRC-006','SRC-024','SRC-016','SRC-023','SRC-039','SRC-040','SRC-052','SRC-053','SRC-054','SRC-055','SRC-056','SRC-057','SRC-058','SRC-060','SRC-061','SRC-064','SRC-065']);
-const links=[['GD-A-01','SRC-039','Р13014'],['GD-A-03','SRC-040','Р34001'],['LOG-A-01','SRC-054','акт'],['LOG-A-01','SRC-057','претензи'],['LOG-A-02','SRC-052','акт'],['LOG-A-03','SRC-053','акт']];
+const links=[['GD-A-01','SRC-039','Р13014'],['GD-A-03','SRC-040','Р34001'],['LOG-A-01','SRC-054','акт'],['LOG-A-01','SRC-057','претензи'],['LOG-A-02','SRC-053','акт'],['LOG-A-03','SRC-052','акт']];
 for(const row of all('SELECT * FROM materials')){
  const m=unpack(row);if(!selectedSources.has(m.sourceId)||!['card','question','form','service'].includes(m.kind))continue;
  // Одноразовое разрешение стартовой выборки; не отменяет последующие решения редактора.

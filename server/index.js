@@ -4,12 +4,13 @@ import path from 'node:path';
 import {randomBytes,randomUUID,scryptSync,timingSafeEqual} from 'node:crypto';
 import {db,all,one,run,unpack,materials,root,privateDir} from './db.js';
 import {registerAccounts,canRead,preview,staff} from './accounts.js';
+import {currentFileNames} from '../shared/current-files.js';
 import {performImport} from '../scripts/import.js';
 const app=express(), port=Number(process.env.PORT||4317), host=process.env.HOST||'127.0.0.1';
 app.disable('x-powered-by');app.use(express.json({limit:'2mb'}));
 app.use((req,res,next)=>{
  res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'SAMEORIGIN','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"});
- if(req.path.startsWith('/api')||req.path.startsWith('/files'))res.set('Cache-Control','no-store');
+ if(req.path.startsWith('/api')||req.path.startsWith('/files')||req.path.startsWith('/current'))res.set('Cache-Control','no-store');
  const token=(req.headers.cookie||'').split('; ').find(s=>s.startsWith('sid='))?.slice(4);
  const session=token?one('SELECT * FROM sessions WHERE token=? AND expires>?',token,Date.now()):null;
  req.session=session;req.user=session?one('SELECT id,username,role FROM users WHERE id=?',session.user_id):null;
@@ -48,6 +49,14 @@ app.get('/api/materials',(req,res)=>{
 });
 app.get('/api/materials/:id',(req,res)=>{const m=unpack(one('SELECT * FROM materials WHERE id=?',req.params.id));if(!visible(m,req.user))return error(res,404,'Материал недоступен');if(!canRead(m,req.user))return res.status(402).json({error:'Материал доступен по подписке',locked:true,title:m.title});res.json(staff(req.user)?m:safePublic(m));});
 app.get('/api/relations/:id',(req,res)=>{const m=unpack(one('SELECT * FROM materials WHERE id=?',req.params.id));if(!visible(m,req.user))return error(res,404,'Материал недоступен');if(!canRead(m,req.user))return error(res,402,'Материал доступен по подписке');res.json(all('SELECT * FROM relations WHERE origin=?',m.id).map(r=>{const target=unpack(one('SELECT * FROM materials WHERE id=?',r.target||''));return {...r,target:visible(target,req.user)?r.target:null};}));});
+app.get('/current/:name',(req,res)=>{
+ const name=req.params.name;
+ const allowed=materials().some(m=>m.status==='published'&&canRead(m,req.user)&&currentFileNames(m).includes(name));
+ if(!allowed)return error(res,404,'Файл недоступен');
+ const file=path.join(root,'public/release/current',name);
+ if(!fs.existsSync(file))return error(res,404,'Файл не найден');
+ if(name.endsWith('.pdf'))res.sendFile(file);else res.download(file,name);
+});
 app.get('/files/:id',(req,res)=>{
  const row=one('SELECT data FROM sources WHERE id=?',req.params.id);if(!row)return error(res,404,'Файл не найден');const s=JSON.parse(row.data);
  const allowed=materials().some(m=>m.fileId===s.id&&m.status==='published'&&canRead(m,req.user));if(!allowed&&!['editor','admin'].includes(req.user?.role))return error(res,404,'Файл недоступен');
