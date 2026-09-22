@@ -1,16 +1,16 @@
 // Схема открытой ленты клуба выпускников; адаптирована из apps/web/src/lib/changes-schema.ts.
-                                                             
-                                                                            
-                            
-                                                                                           
-                                                                               
-                                                                           
- 
-                                  
-                                                                                
-                                                                                    
-                                                                   
- 
+
+
+
+
+
+
+
+
+
+
+
+
 export const CHANNEL = "LegisDigest";
 export const SOURCE_HOSTS = new Set(["publication.pravo.gov.ru", "pravo.gov.ru", "rg.ru", "www.rg.ru", "pnp.ru", "www.pnp.ru", "consultant.ru", "www.consultant.ru", "sozd.duma.gov.ru", "duma.gov.ru", "government.ru", "kremlin.ru", "cbr.ru", "www.cbr.ru"]);
 export function safeSourceUrl(value         )                {
