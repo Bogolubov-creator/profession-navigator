@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {situationSearch} from '../shared/situation-search.js';
+test('Поиск понимает приём сотрудника и ставит инструкцию перед документом',()=>{const rows=[{id:'f',kind:'form',title:'Приём работника'},{id:'c',kind:'card',title:'Принимаете сотрудника: что проверить',steps:[{text:'Прием на работу'}]},{id:'x',kind:'card',title:'Отпуск'}];assert.deepEqual(situationSearch(rows,'принять сотрудника').map(m=>m.id),['c','f'])});
+test('Поиск не подставляет нерелевантные инструкции',()=>assert.equal(situationSearch([{kind:'card',title:'Оформить отпуск'}],'фото согласие').length,0));
